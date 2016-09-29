@@ -28,7 +28,6 @@ import {
   extractGoogleAdCreativeAndSignature,
   googleAdUrl,
   isGoogleAdsA4AValidEnvironment,
-  getCorrelator,
 } from '../../../ads/google/a4a/utils';
 import {getLifecycleReporter} from '../../../ads/google/a4a/performance';
 import {stringHash32} from '../../../src/crypto';
@@ -65,16 +64,13 @@ export class AmpAdNetworkDoubleclickImpl extends AmpA4A {
   getAdUrl() {
     const startTime = Date.now();
     const global = this.win;
-    const slotId = this.element.getAttribute('data-amp-slot-index');
-    const slotIdNumber = Number(slotId);
-    const correlator = getCorrelator(global, slotId);
     const slotRect = this.getIntersectionElementLayoutBox();
     const size = `${slotRect.width}x${slotRect.height}`;
     const rawJson = this.element.getAttribute('json');
     const jsonParameters = rawJson ? JSON.parse(rawJson) : {};
     const tfcd = jsonParameters['tfcd'];
     const adTestOn = isInManualExperiment(this.element);
-    return googleAdUrl(this, DOUBLECLICK_BASE_URL, startTime, slotIdNumber, [
+    return googleAdUrl(this, DOUBLECLICK_BASE_URL, startTime, [
       {name: 'iu', value: this.element.getAttribute('data-slot')},
       {name: 'co', value: jsonParameters['cookieOptOut'] ? '1' : null},
       {name: 'adk', value: this.adKey_(size)},
@@ -85,8 +81,6 @@ export class AmpAdNetworkDoubleclickImpl extends AmpA4A {
       {name: 'tfcd', value: tfcd == undefined ? null : tfcd},
       {name: 'u_sd', value: global.devicePixelRatio},
       {name: 'adtest', value: adTestOn},
-      {name: 'ifi', value: slotIdNumber},
-      {name: 'c', value: correlator},
 
     ], [
       {
