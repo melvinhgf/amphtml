@@ -1,8 +1,20 @@
+/**
+ * Copyright 2016 The AMP HTML Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS-IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 import './polyfills';
-import {
-  dev,
-  user,
-} from '../src/log';
+import {dev, user} from '../src/log';
 import {IframeMessagingClient} from './iframe-messaging-client';
 
 /**
@@ -29,24 +41,25 @@ export class AmpContext extends IframeMessagingClient {
   constructor(win) {
     super(win);
     this.setupMetadata_();
-    this.ampWindow = this.getHostWindow();
+
+    /** Calculate the hostWindow / ampWindow_ */
+    const sentinelMatch = this.sentinel.match(/((\d+)-\d+)/);
+    dev().assert(sentinelMatch, 'Incorrect sentinel format');
+    this.depth = Number(sentinelMatch[2]);
+    const ancestors = [];
+    for (let win = this.win_; win && win != win.parent; win = win.parent) {
+      // Add window keeping the top-most one at the front.
+      ancestors.push(win.parent);
+    }
+    ancestors.reverse();
+
+    /** @private */
+    this.ampWindow_ = ancestors[this.depth];
   }
 
   /** @override */
   getHostWindow() {
-    const sentinelMatch = this.sentinel.match(/((\d+)-\d+)/);
-    if (sentinelMatch) {
-      this.depth = Number(sentinelMatch[2]);
-      this.ancestors = [];
-      for (let win = this.win_; win && win != win.parent; win = win.parent) {
-        // Add window keeping the top-most one at the front.
-        this.ancestors.unshift(win.parent);
-      }
-      return this.ancestors[this.depth];
-    } else {
-      dev().error('Incorrect sentinel format.');
-      throw new Error('Incorrect sentinel format.');
-    }
+    return this.ampWindow_;
   }
 
   /** @override */
@@ -57,7 +70,7 @@ export class AmpContext extends IframeMessagingClient {
   /** @override */
   registerCallback_(messageType, callback) {
     if (!this.isValidMessageType(messageType)) {
-      user().error('Invalid message type.');
+      user().error('AMPCONTEXT', '- Invalid message type.');
       return;
     }
     this.callbackFor_[messageType] = callback;
@@ -69,15 +82,13 @@ export class AmpContext extends IframeMessagingClient {
    *  Return true if messagetype is approved
    */
   isValidMessageType(messageType) {
-    const validTypes = [
-      'embed-state',
-      'embed-context',
-      'intersection',
-      'embed-size',
-      'embed-size-changed',
-      'embed-size-denied',
-    ];
-    return !!(validTypes.includes(messageType));
+    try {
+      user().assertEnumValue(MessageType_, messageType);
+      dev.assert(messageType.indexOf('send-') == 0, 'Invalid message type');
+      return true;
+    } catch (err) {
+      return false;
+    }
   }
 
   /**
@@ -88,9 +99,9 @@ export class AmpContext extends IframeMessagingClient {
    *    every time we receive a page visibility message.
    */
   observePageVisibility(callback) {
-    const stopObserveFunc = this.registerCallback_(MessageType_.EMBED_STATE,
-                                                   callback);
-    this.ampWindow.postMessage({
+    const stopObserveFunc = this.registerCallback_(
+        MessageType_.EMBED_STATE, callback);
+    this.ampWindow_.postMessage/*REVIEW*/({
       sentinel: this.sentinel,
       type: MessageType_.SEND_EMBED_STATE,
     }, '*');
@@ -107,9 +118,9 @@ export class AmpContext extends IframeMessagingClient {
 
    */
   observeIntersection(callback) {
-    const stopObserveFunc = this.registerCallback_(MessageType_.INTERSECTION,
-                                                   callback);
-    this.ampWindow.postMessage({
+    const stopObserveFunc = this.registerCallback_(
+        MessageType_.INTERSECTION, callback);
+    this.ampWindow_.postMessage/*REVIEW*/({
       sentinel: this.sentinel,
       type: MessageType_.SEND_INTERSECTIONS,
     }, '*');
@@ -124,7 +135,7 @@ export class AmpContext extends IframeMessagingClient {
    *  @param {int} width The new width for the ad we are requesting.
    */
   requestResize(height, width) {
-    this.ampWindow.postMessage({
+    this.ampWindow_.postMessage/*REVIEW*/({
       sentinel: this.sentinel,
       type: MessageType_.EMBED_SIZE,
       width,
@@ -159,7 +170,7 @@ export class AmpContext extends IframeMessagingClient {
   /**
    *  Takes the current name on the window, and attaches it to
    *  the name of the iframe.
-   *  @param {Iframe} iframe The iframe we are adding the context to.
+   *  @param {HTMLIframeElement} iframe The iframe we are adding the context to.
    */
   addContextToIframe(iframe) {
     iframe.name = this.win_.name;
@@ -181,7 +192,7 @@ export class AmpContext extends IframeMessagingClient {
       this.startTime = context.startTime;
       this.referrer = context.referrer;
     } catch (err) {
-      user().error('Could not parse metadata.');
+      user().error('AMPCONTEXT', '- Could not parse metadata.');
       throw new Error('Could not parse metadata.');
     }
   }
