@@ -23,7 +23,7 @@ import {dev} from '../src/log';
  *  functionality.
  */
 try {
-  dev.log('Attempting to make AmpContext');
+  dev().fine('AMPCONTEXT Attempting to make AmpContext');
   const windowContextCreated = new Event('amp-windowContextCreated');
   window.context = new AmpContext(window);
   // Allows for pre-existence, consider validating correct window.context lib instance?
