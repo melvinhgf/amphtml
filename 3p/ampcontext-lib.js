@@ -1,5 +1,5 @@
 /**
- * Copyright 2015 The AMP HTML Authors. All Rights Reserved.
+ * Copyright 2016 The AMP HTML Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import {AmpContext} from './ampcontext.js';
+import {dev} from '../src/log';
 
 
 /**
@@ -22,7 +23,7 @@ import {AmpContext} from './ampcontext.js';
  *  functionality.
  */
 try {
-  console/*OK*/.log('Attempting to make AmpContext');
+  dev.log('Attempting to make AmpContext');
   const windowContextCreated = new Event('amp-windowContextCreated');
   window.context = new AmpContext(window);
   // Allows for pre-existence, consider validating correct window.context lib instance?
